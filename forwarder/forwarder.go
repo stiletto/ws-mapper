@@ -54,13 +54,13 @@ func (h *WSForwarder) connHandler(conn *websocket.Conn) {
 				logger.Error("client read error", "err", err)
 				break
 			}
-			logger.Info("client read", "n", n, "data", buf[:n])
+			// logger.Info("client read", "n", n, "data", buf[:n])
 			n, err = targetConn.Write(buf[:n])
 			if err != nil {
 				logger.Error("target write error", "err", err)
 				break
 			}
-			logger.Info("target write", "n", n)
+			// logger.Info("target write", "n", n)
 		}
 		stop <- true
 	}()
@@ -72,13 +72,13 @@ func (h *WSForwarder) connHandler(conn *websocket.Conn) {
 				logger.Error("target read error", "err", err)
 				break
 			}
-			logger.Info("target read", "n", n, "data", buf[:n])
+			// logger.Info("target read", "n", n, "data", buf[:n])
 			n, err = conn.Write(buf[:n])
 			if err != nil {
 				logger.Error("client write error", "err", err)
 				break
 			}
-			logger.Info("client write", "n", n)
+			// logger.Info("client write", "n", n)
 		}
 		stop <- true
 	}()
