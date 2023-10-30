@@ -1,7 +1,6 @@
 package forwarder
 
 import (
-	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -36,6 +35,7 @@ func (h *WSForwarder) connHandler(conn *websocket.Conn) {
 	if !ok {
 		logger = slog.Default()
 	}
+	conn.PayloadType = websocket.BinaryFrame
 
 	logger.Info("WebSocket established, connecting to target", "target", h.Target)
 	targetConn, err := net.Dial(h.Target.Family, h.Target.Address)
@@ -47,16 +47,38 @@ func (h *WSForwarder) connHandler(conn *websocket.Conn) {
 	// WebSocket protocol does not properly support half-open connections
 	// so we don't bother either
 	go func() {
-		_, err := io.Copy(targetConn, conn)
-		if err != nil {
-			logger.Error("client -> target", "err", err)
+		buf := make([]byte, 10<<10)
+		for {
+			n, err := conn.Read(buf)
+			if err != nil {
+				logger.Error("client read error", "err", err)
+				break
+			}
+			logger.Info("client read", "n", n, "data", buf[:n])
+			n, err = targetConn.Write(buf[:n])
+			if err != nil {
+				logger.Error("target write error", "err", err)
+				break
+			}
+			logger.Info("target write", "n", n)
 		}
 		stop <- true
 	}()
 	go func() {
-		_, err := io.Copy(conn, targetConn)
-		if err != nil {
-			logger.Error("target -> client", "err", err)
+		buf := make([]byte, 10<<10)
+		for {
+			n, err := targetConn.Read(buf)
+			if err != nil {
+				logger.Error("target read error", "err", err)
+				break
+			}
+			logger.Info("target read", "n", n, "data", buf[:n])
+			n, err = conn.Write(buf[:n])
+			if err != nil {
+				logger.Error("client write error", "err", err)
+				break
+			}
+			logger.Info("client write", "n", n)
 		}
 		stop <- true
 	}()
